@@ -95,8 +95,7 @@ class MixImageAugmentator:
     def _beta_sampling(self, shape, alpha = 1.0):
         r1 = tf.random.gamma(shape, alpha, 1, dtype = tf.float32)
         r2 = tf.random.gamma(shape, alpha, 1, dtype = tf.float32)
-        b = tf.abs(r1 / (r1 + r2) - 0.5) + 0.5
-        return b
+        return r1 / (r1 + r2)
     
     def _calc_mixup(
         self,
