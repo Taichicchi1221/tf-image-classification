@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import tensorflow as tf
-import tensorflow_addons as tfa
 
 @dataclass
 class SingleImageAugmentator:
@@ -17,8 +16,6 @@ class SingleImageAugmentator:
     RANDOM_SATURATION: bool = True
     RANDOM_SATURATION_LOWER: float = 0.5
     RANDOM_SATURATION_UPPER: float = 1.5
-    RANDOM_CUTOUT: bool = True
-    RANDOM_CUTOUT_SIZE: int = 32
     RANDOM_BLOCKOUT: bool = True
     RANDOM_BLOCKOUT_SL: float = 0.1
     RANDOM_BLOCKOUT_SH: float = 0.2
@@ -71,11 +68,9 @@ class SingleImageAugmentator:
         if self.RANDOM_CONTRAST: image = tf.image.random_contrast(image, self.RANDOM_CONTRAST_LOWER, self.RANDOM_CONTRAST_UPPER, seed = self.seed)
         if self.RANDOM_HUE: image = tf.image.random_hue(image, self.RANDOM_HUE_MAX_DELTA, seed = self.seed)
         if self.RANDOM_SATURATION: image = tf.image.random_saturation(image, self.RANDOM_SATURATION_LOWER, self.RANDOM_SATURATION_UPPER, seed = self.seed)
-        if self.RANDOM_CUTOUT: image = tf.squeeze(tfa.image.random_cutout(tf.expand_dim(image, axis = 0), mask_size = self.RANDOM_CUTOUT_SIZE, seed = self.seed), axis = 0)
         if self.RANDOM_BLOCKOUT: image = self._random_blockout(image, self.RANDOM_BLOCKOUT_SL, self.RANDOM_BLOCKOUT_SH, self.RANDOM_BLOCKOUT_RL)
         
         return image, label
-
 
 @dataclass
 class MixImageAugmentator:
