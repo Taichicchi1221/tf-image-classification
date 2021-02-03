@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+import tensorflow as tf
 import tensorflow_addons as tfa
 
 @dataclass
