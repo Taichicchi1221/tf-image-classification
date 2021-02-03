@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import tensorflow as tf
-import tensorflow_addons as tfa
 
 @dataclass
 class SingleImageAugmentator:
@@ -8,8 +7,6 @@ class SingleImageAugmentator:
     RANDOM_CROP: bool = True
     RANDOM_CROP_SIZE: int = 64
     RANDOM_ROTATION: bool = True
-    RANDOM_ROTATION_RANGE: int = 45
-    RANDOM_ROTATION_FILL_MODE: str = "nearest" # one of {'constant', 'nearest', 'reflect', 'wrap'}
     RANDOM_FLIP_LEFT_RIGHT: bool = True
     RANDOM_FLIP_UP_DOWN: bool = True
     RANDOM_BRIGHTNESS: bool = True
@@ -73,12 +70,7 @@ class SingleImageAugmentator:
             ),
             SIZE)
         return image
-    
-    def _random_rotation(self, image, rotation_range, fill_mode, seed):
-        ang = tf.random.uniform([], 0, rotation_range, tf.float32, seed = seed)
-        image = tfa.image.rotate(image, ang, fill_mode = fill_mode)
-        return image
-        
+            
     def __call__(
         self,
         image,
@@ -86,7 +78,6 @@ class SingleImageAugmentator:
     ):
         if self.RANDOM_FLIP_LEFT_RIGHT: image = tf.image.random_flip_left_right(image, seed = self.seed)
         if self.RANDOM_FLIP_UP_DOWN: image = tf.image.random_flip_up_down(image, seed = self.seed)
-        if self.RANDOM_ROTATION: image = self._random_rotation(image, self.RANDOM_ROTATION_RANGE, self.RANDOM_ROTATION_FILL_MODE, seed = self.seed)
         if self.RANDOM_CROP: image = self._random_crop(image, self.RANDOM_CROP_SIZE, seed = self.seed)
         if self.RANDOM_BRIGHTNESS: image = tf.image.random_brightness(image, self.RANDOM_BRIGHTNESS_MAX_DELTA, seed = self.seed)
         if self.RANDOM_CONTRAST: image = tf.image.random_contrast(image, self.RANDOM_CONTRAST_LOWER, self.RANDOM_CONTRAST_UPPER, seed = self.seed)
