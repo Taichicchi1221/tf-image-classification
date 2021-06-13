@@ -13,15 +13,18 @@ class AugmentationBase:
         self.seed = seed
 
     def do_transform(self):
-        return (tf.random.uniform([], dtype=tf.float32, seed=self.seed) <= self.p)
+        return tf.cast((tf.random.uniform([self.aug_batch_size], dtype=tf.float32, seed=self.seed) <= self.p), tf.float32)
 
     def transform(self, images, labels):
         imgs = []
         labs = []
+        a = self.do_transform()
         for idx in range(self.aug_batch_size):
-            image, label = self.single_transform(images[idx], labels[idx])
-            imgs.append(image)
-            labs.append(label)
+            tr_image, tr_label = self.single_transform(
+                images[idx], labels[idx]
+            )
+            imgs.append((1 - a[idx]) * images[idx] + a[idx] * tr_image)
+            labs.append((1 - a[idx]) * labels[idx] + a[idx] * tr_label)
 
         result_images = tf.reshape(
             tf.stack(imgs),
@@ -45,118 +48,109 @@ class RandomFlipLeftRight(AugmentationBase):
                          image_size_1, image_channels, seed)
 
     def single_transform(self, image, label):
-        if self.do_transform():
-            image = tf.image.flip_left_right(image)
+        image = tf.image.flip_left_right(image)
         return image, label
 
 
 class RandomFlipUpDown(AugmentationBase):
     def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed):
-        super().__init__(self, p, aug_batch_size, image_size_0,
+        super().__init__(p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
 
     def single_transform(self, image, label):
-        print(self.do_transform())
-        if self.do_transform():
-            image = tf.image.flip_up_down(image)
+        image = tf.image.flip_up_down(image)
         return image, label
 
 
 class RandomRotation(AugmentationBase):
     def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, ang_range, fill_mode):
-        super().__init__(self, p, aug_batch_size, image_size_0,
+        super().__init__(p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
         self.ang_range = ang_range
         self.fill_mode = fill_mode
 
     def single_transform(self, image, label):
-        if self.do_transform():
-            rotation_ang = tf.random.uniform(
-                [], 0, self.ang_range, dtype=tf.float32, seed=self.seed
-            )
-            image = tfa.image.rotate(
-                image,
-                rotation_ang,
-                fill_mode=self.fill_mode
-            )
+        rotation_ang = tf.random.uniform(
+            [], 0, self.ang_range, dtype=tf.float32, seed=self.seed
+        )
+        image = tfa.image.rotate(
+            image,
+            rotation_ang,
+            fill_mode=self.fill_mode
+        )
         return image, label
 
 
 class RandomBrightness(AugmentationBase):
     def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, max_delta):
-        super().__init__(self, p, aug_batch_size, image_size_0,
+        super().__init__(p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
         self.max_delta = max_delta
 
     def single_transform(self, image, label):
-        if self.do_transform():
-            delta = tf.random.uniform(
-                [], -self.max_delta, self.max_delta, dtype=tf.float32, seed=self.seed
-            )
-            image = tf.image.adjust_brightness(image, delta)
-        return images, labels
+        delta = tf.random.uniform(
+            [], -self.max_delta, self.max_delta, dtype=tf.float32, seed=self.seed
+        )
+        image = tf.image.adjust_brightness(image, delta)
+        return image, label
 
 
 class RandomContrast(AugmentationBase):
     def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, lower, upper):
-        super().__init__(self, p, aug_batch_size, image_size_0,
+        super().__init__(p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
         self.lower = lower
         self.upper = upper
 
     def single_transform(self, image, label):
-        if self.do_transform():
-            contrast_factor = tf.random.uniform(
-                [], self.lower, self.upper, dtype=tf.float32, seed=self.seed
-            )
-            image = tf.image.adjust_contrast(image, contrast_factor)
+        contrast_factor = tf.random.uniform(
+            [], self.lower, self.upper, dtype=tf.float32, seed=self.seed
+        )
+        image = tf.image.adjust_contrast(image, contrast_factor)
         return image, label
 
 
 class RandomHue(AugmentationBase):
     def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, max_delta):
-        super().__init__(self, p, aug_batch_size, image_size_0,
+        super().__init__(p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
         self.max_delta = max_delta
 
     def single_transform(self, image, label):
-        if self.do_transform():
-            delta = tf.random.uniform(
-                [], -self.max_delta, self.max_delta, dtype=tf.float32, seed=self.seed
-            )
-            image = tf.image.adjust_hue(image, delta)
+        delta = tf.random.uniform(
+            [], -self.max_delta, self.max_delta, dtype=tf.float32, seed=self.seed
+        )
+        image = tf.image.adjust_hue(image, delta)
         return image, label
 
 
 class RandomJpegQuality(AugmentationBase):
     def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, min_jpeg_quality, max_jpeg_quality):
-        super().__init__(self, p, aug_batch_size, image_size_0,
+        super().__init__(p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
         self.min_jpeg_quality = min_jpeg_quality
         self.max_jpeg_quality = max_jpeg_quality
 
     def single_transform(self, image, label):
-        if self.do_transform():
-            jpeg_quality = tf.random.uniform(
-                [], self.min_jpeg_quality, self.max_jpeg_quality, dtype=tf.int32, seed=self.seed
-            )
-            image = tf.image.adjust_jpeg_quality(image, jpeg_quality)
+        jpeg_quality = tf.random.uniform(
+            [], self.min_jpeg_quality, self.max_jpeg_quality, dtype=tf.int32, seed=self.seed
+        )
+        image = tf.image.adjust_jpeg_quality(image, jpeg_quality)
         return image, label
 
 
 class RandomSaturation(AugmentationBase):
     def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, lower, upper):
-        super().__init__(self, p, aug_batch_size, image_size_0,
+        super().__init__(p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
         self.lower = lower
         self.upper = upper
 
     def single_transform(self, image, label):
-        if self.do_transform():
-            saturation_factor = tf.random.uniform(
-                [], self.lower, self.upper, dtype=tf.float32, seed=self.seed
-            )
-            image = tf.image.adjust_saturation(image, saturation_factor)
+        saturation_factor = tf.random.uniform(
+            [], self.lower, self.upper, dtype=tf.float32, seed=self.seed
+        )
+        image = tf.image.adjust_saturation(image, saturation_factor)
         return image, label
 
 
@@ -180,7 +174,7 @@ class MixAugmentationBase:
 
 class RandomMixUp(MixAugmentationBase):
     def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, alpha):
-        super().__init__(self, p, aug_batch_size,
+        super().__init__(p, aug_batch_size,
                          image_size_0, image_size_1, image_channels, seed)
         self.alpha = alpha
 
@@ -226,7 +220,7 @@ class RandomMixUp(MixAugmentationBase):
 
 class RandomCutMix(MixAugmentationBase):
     def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, alpha):
-        super().__init__(self, p, aug_batch_size,
+        super().__init__(p, aug_batch_size,
                          image_size_0, image_size_1, image_channels, seed)
         self.alpha = alpha
 
@@ -277,7 +271,7 @@ class RandomCutMix(MixAugmentationBase):
 
         return tf.stack(image_ratios), tf.stack(label_ratios)
 
-    def _batch_cutmix(
+    def transform(
         self,
         images,
         labels,
@@ -288,10 +282,10 @@ class RandomCutMix(MixAugmentationBase):
         for j in range(self.aug_batch_size):
             k = tf.cast(tf.random.uniform(
                 [], 0, self.aug_batch_size), tf.int32)
-            img1 = image_batch[j, ]
-            img2 = image_batch[k, ]
-            lab1 = label_batch[j, ]
-            lab2 = label_batch[k, ]
+            img1 = images[j, ]
+            img2 = images[k, ]
+            lab1 = labels[j, ]
+            lab2 = labels[k, ]
 
             result_image = image_mix_ratios[j, ] * \
                 img1 + (1 - image_mix_ratios[j, ]) * img2
@@ -310,7 +304,7 @@ class RandomCutMix(MixAugmentationBase):
 
 class RandomFMix(MixAugmentationBase):
     def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, alpha, decay):
-        super().__init__(self, p, aug_batch_size,
+        super().__init__(p, aug_batch_size,
                          image_size_0, image_size_1, image_channels, seed)
         self.alpha = alpha
         self.decay = decay
@@ -470,6 +464,6 @@ class RandomFMix(MixAugmentationBase):
         result_image_batch = tf.reshape(tf.stack(
             imgs), (self.aug_batch_size, self.image_size_0, self.image_size_1, self.image_channels))
         result_label_batch = tf.reshape(
-            tf.stack(labs), (self.aug_batch_size, self.CLASSES))
+            tf.stack(labs), (self.aug_batch_size, -1))
 
         return result_image_batch, result_label_batch
