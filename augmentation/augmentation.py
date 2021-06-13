@@ -4,270 +4,206 @@ import tensorflow_addons as tfa
 
 
 class AugmentationBase:
-    def __init__(self, aug_batch_size, image_size_0, image_size_1, image_channels, seed):
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed):
+        self.p = p
         self.aug_batch_size = aug_batch_size
         self.image_size_0 = image_size_0
         self.image_size_1 = image_size_1
         self.image_channels = image_channels
         self.seed = seed
 
-    def transform(self, transform_function, images, labels):
-        pass
+    def do_transform(self):
+        return (tf.random.uniform([], dtype=tf.float32, seed=self.seed) <= self.p)
+
+    def transform(self, images, labels):
+        imgs = []
+        labs = []
+        for idx in range(self.aug_batch_size):
+            image, label = self.single_transform(images[idx], labels[idx])
+            imgs.append(image)
+            labs.append(label)
+
+        result_images = tf.reshape(
+            tf.stack(imgs),
+            (
+                self.aug_batch_size,
+                self.image_size_0,
+                self.image_size_1,
+                self.image_channels
+            )
+        )
+        result_labels = tf.reshape(
+            tf.stack(labs),
+            (self.aug_batch_size, -1)
+        )
+        return result_images, result_labels
 
 
 class RandomFlipLeftRight(AugmentationBase):
-    def __init__(self, aug_batch_size, image_size_0, image_size_1, image_channels, seed):
-        super().__init__(self, aug_batch_size, image_size_0,
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed):
+        super().__init__(p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
 
-    def transform(self, images, labels):
-        images = tf.image.random_flip_left_right(images, seed=self.seed)
-        return images, labels
+    def single_transform(self, image, label):
+        if self.do_transform():
+            image = tf.image.flip_left_right(image)
+        return image, label
 
 
 class RandomFlipUpDown(AugmentationBase):
-    def __init__(self, aug_batch_size, image_size_0, image_size_1, image_channels, seed):
-        super().__init__(self, aug_batch_size, image_size_0,
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed):
+        super().__init__(self, p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
 
-    def transform(self, images, labels):
-        images = tf.image.random_flip_up_down(images, seed=self.seed)
-        return images, labels
+    def single_transform(self, image, label):
+        print(self.do_transform())
+        if self.do_transform():
+            image = tf.image.flip_up_down(image)
+        return image, label
 
 
 class RandomRotation(AugmentationBase):
-    def __init__(self, aug_batch_size, image_size_0, image_size_1, image_channels, seed, ang_range, fill_mode):
-        super().__init__(self, aug_batch_size, seed)
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, ang_range, fill_mode):
+        super().__init__(self, p, aug_batch_size, image_size_0,
+                         image_size_1, image_channels, seed)
         self.ang_range = ang_range
         self.fill_mode = fill_mode
 
-    def transform(self, images, labels):
-        rotation_ang = tf.random.uniform(
-            [self.aug_batch_size], 0, self.ang_range, dtype=tf.float32, seed=self.seed)
-        imgs = []
-        for j in range(self.aug_batch_size):
-            imgs.append(tfa.image.rotate(
-                images[j, ], rotation_ang[j, ], fill_mode=self.fill_mode))
-        images = tf.reshape(tf.stack(imgs), (self.aug_batch_size,
-                                             self.image_size_0, self.image_size_1, self.image_channels))
-        return images, labels
+    def single_transform(self, image, label):
+        if self.do_transform():
+            rotation_ang = tf.random.uniform(
+                [], 0, self.ang_range, dtype=tf.float32, seed=self.seed
+            )
+            image = tfa.image.rotate(
+                image,
+                rotation_ang,
+                fill_mode=self.fill_mode
+            )
+        return image, label
 
 
 class RandomBrightness(AugmentationBase):
-    def __init__(self, aug_batch_size, image_size_0, image_size_1, image_channels, seed, max_delta):
-        super().__init__(self, aug_batch_size, image_size_0,
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, max_delta):
+        super().__init__(self, p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
         self.max_delta = max_delta
 
-    def transform(self, images, labels):
-        imgs = []
-        for j in range(self.aug_batch_size):
-            imgs.append(tf.image.random_brightness(
-                images[j, ], self.max_delta, seed=seld.seed))
-        images = tf.reshape(tf.stack(imgs), (self.aug_batch_size,
-                                             self.image_size_0, self.image_size_1, self.image_channels))
+    def single_transform(self, image, label):
+        if self.do_transform():
+            delta = tf.random.uniform(
+                [], -self.max_delta, self.max_delta, dtype=tf.float32, seed=self.seed
+            )
+            image = tf.image.adjust_brightness(image, delta)
         return images, labels
 
 
 class RandomContrast(AugmentationBase):
-    def __init__(self, aug_batch_size, image_size_0, image_size_1, image_channels, seed, lower, upper):
-        super().__init__(self, aug_batch_size, image_size_0,
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, lower, upper):
+        super().__init__(self, p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
         self.lower = lower
         self.upper = upper
 
-    def transform(self, images, labels):
-        imgs = []
-        for j in range(self.aug_batch_size):
-            imgs.append(tf.image.random_contrast(
-                images[j, ], self.lower, self.upper, seed=seld.seed))
-        images = tf.reshape(tf.stack(imgs), (self.aug_batch_size,
-                                             self.image_size_0, self.image_size_1, self.image_channels))
-        return images, labels
+    def single_transform(self, image, label):
+        if self.do_transform():
+            contrast_factor = tf.random.uniform(
+                [], self.lower, self.upper, dtype=tf.float32, seed=self.seed
+            )
+            image = tf.image.adjust_contrast(image, contrast_factor)
+        return image, label
 
 
 class RandomHue(AugmentationBase):
-    def __init__(self, aug_batch_size, image_size_0, image_size_1, image_channels, seed, max_delta):
-        super().__init__(self, aug_batch_size, image_size_0,
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, max_delta):
+        super().__init__(self, p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
         self.max_delta = max_delta
 
-    def transform(self, images, labels):
-        imgs = []
-        for j in range(self.aug_batch_size):
-            imgs.append(tf.image.random_hue(
-                images[j, ], self.max_delta, seed=seld.seed))
-        images = tf.reshape(tf.stack(imgs), (self.aug_batch_size,
-                                             self.image_size_0, self.image_size_1, self.image_channels))
-        return images, labels
+    def single_transform(self, image, label):
+        if self.do_transform():
+            delta = tf.random.uniform(
+                [], -self.max_delta, self.max_delta, dtype=tf.float32, seed=self.seed
+            )
+            image = tf.image.adjust_hue(image, delta)
+        return image, label
 
 
 class RandomJpegQuality(AugmentationBase):
-    def __init__(self, aug_batch_size, image_size_0, image_size_1, image_channels, seed, min_jpeg_quality, max_jpeg_quality):
-        super().__init__(self, aug_batch_size, image_size_0,
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, min_jpeg_quality, max_jpeg_quality):
+        super().__init__(self, p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
         self.min_jpeg_quality = min_jpeg_quality
         self.max_jpeg_quality = max_jpeg_quality
 
-    def transform(self, images, labels):
-        imgs = []
-        for j in range(self.aug_batch_size):
-            imgs.append(tf.image.random_jpeg_quality(
-                images[j, ], self.min_jpeg_quality, self.max_jpeg_quality, seed=seld.seed))
-        images = tf.reshape(tf.stack(imgs), (self.aug_batch_size,
-                                             self.image_size_0, self.image_size_1, self.image_channels))
+    def single_transform(self, image, label):
+        if self.do_transform():
+            jpeg_quality = tf.random.uniform(
+                [], self.min_jpeg_quality, self.max_jpeg_quality, dtype=tf.int32, seed=self.seed
+            )
+            image = tf.image.adjust_jpeg_quality(image, jpeg_quality)
+        return image, label
 
 
 class RandomSaturation(AugmentationBase):
-    def __init__(self, aug_batch_size, image_size_0, image_size_1, image_channels, seed, lower, upper):
-        super().__init__(self, aug_batch_size, image_size_0,
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, lower, upper):
+        super().__init__(self, p, aug_batch_size, image_size_0,
                          image_size_1, image_channels, seed)
         self.lower = lower
         self.upper = upper
 
-    def transform(self, images, labels):
-        imgs = []
-        for j in range(self.aug_batch_size):
-            imgs.append(tf.image.random_saturation(
-                images[j, ], self.lower, self.upper, seed=seld.seed))
-        images = tf.reshape(tf.stack(imgs), (self.aug_batch_size,
-                                             self.image_size_0, self.image_size_1, self.image_channels))
-        return images, labels
+    def single_transform(self, image, label):
+        if self.do_transform():
+            saturation_factor = tf.random.uniform(
+                [], self.lower, self.upper, dtype=tf.float32, seed=self.seed
+            )
+            image = tf.image.adjust_saturation(image, saturation_factor)
+        return image, label
 
 
-class RandomCrop(AugmentationBase):
-    def __init__(self, aug_batch_size, image_size_0, image_size_1, image_channels, seed, crop_size_0, crop_size_1):
-        super().__init__(self, aug_batch_size, image_size_0,
-                         image_size_1, image_channels, seed)
-        self.crop_size_0 = crop_size_0
-        self.crop_size_1 = crop_size_1
+class MixAugmentationBase:
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed):
+        self.p = p
+        self.aug_batch_size = aug_batch_size
+        self.image_size_0 = image_size_0
+        self.image_size_1 = image_size_1
+        self.image_channels = image_channels
+        self.seed = seed
 
-    def transform(self, images, labels):
-        imgs = []
-        for j in range(self.aug_batch_size):
-            imgs.append(tf.image.random_crop(
-                images[j, ], size=(self.crop_size_0, crop_size_1), seed=seld.seed))
-        images = tf.reshape(tf.stack(imgs), (self.aug_batch_size,
-                                             self.image_size_0, self.image_size_1, self.image_channels))
-        return images, labels
-
-class Hoge:
     def _beta_sampling(self, shape, alpha=1.0):
         r1 = tf.random.gamma(shape, alpha, 1, dtype=tf.float32)
         r2 = tf.random.gamma(shape, alpha, 1, dtype=tf.float32)
         return r1 / (r1 + r2)
 
+    def transform(self, images, labels):
+        return images, labels
+
+
+class RandomMixUp(MixAugmentationBase):
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, alpha):
+        super().__init__(self, p, aug_batch_size,
+                         image_size_0, image_size_1, image_channels, seed)
+        self.alpha = alpha
+
     def _calc_mixup(
         self,
-        alpha=1.0,
-        PROBABILITY=1.0,
     ):
         P = tf.cast(tf.random.uniform(
-            [self.AUG_BATCH], 0, 1) <= PROBABILITY, tf.float32)
-        a = self._beta_sampling([self.AUG_BATCH], alpha) * P
+            [self.aug_batch_size], 0, 1) <= self.p, tf.float32)
+        a = self._beta_sampling([self.aug_batch_size], self.alpha) * P
         return a, a
 
-    def _batch_mixup(
+    def transform(
         self,
         image_batch,
         label_batch,
-        labeled=True,
-        alpha=1.0,
-        PROBABILITY=1.0,
     ):
         imgs = []
         labs = []
-        image_mix_ratios, label_mix_ratios = self._calc_mixup(
-            alpha, PROBABILITY)
+        image_mix_ratios, label_mix_ratios = self._calc_mixup()
 
-        for j in range(self.AUG_BATCH):
-            k = tf.cast(tf.random.uniform([], 0, self.AUG_BATCH), tf.int32)
-            img1 = image_batch[j, ]
-            img2 = image_batch[k, ]
-            lab1 = label_batch[j, ]
-            lab2 = label_batch[k, ]
-
-            result_image = image_mix_ratios[j, ] *
-            img1 + (1 - image_mix_ratios[j, ]) * img2
-            imgs.append(result_image)
-            if labeled:
-                result_label = label_mix_ratios[j, ] *
-                lab1 + (1 - label_mix_ratios[j, ]) * lab2
-                labs.append(result_label)
-
-        result_image_batch = tf.reshape(tf.stack(
-            imgs), (self.AUG_BATCH, self.IMAGE_SIZE_0, self.IMAGE_SIZE_1, self.CHANNELS))
-        if labeled:
-            result_label_batch = tf.reshape(
-                tf.stack(labs), (self.AUG_BATCH, self.CLASSES))
-        else:
-            result_label_batch = tf.reshape(label_batch, (self.AUG_BATCH, ))
-
-        return result_image_batch, result_label_batch
-
-    def _calc_cutmix(
-        self,
-        alpha=1.0,
-        PROBABILITY=1.0,
-    ):
-        # DO CUTMIX WITH PROBABILITY DEFINED ABOVE
-        P = tf.cast(tf.random.uniform(
-            [self.AUG_BATCH], 0, 1) <= PROBABILITY, tf.int32)
-        # CHOOSE RANDOM LOCATION
-        x = tf.cast(tf.random.uniform(
-            [self.AUG_BATCH], 0, self.IMAGE_SIZE_1), tf.int32)
-        y = tf.cast(tf.random.uniform(
-            [self.AUG_BATCH], 0, self.IMAGE_SIZE_0), tf.int32)
-        # this is beta dist with alpha=1.0
-        b = self._beta_sampling([self.AUG_BATCH], alpha)
-        WIDTH = tf.cast(self.IMAGE_SIZE_1 * tf.math.sqrt(1 - b), tf.int32) * P
-        HEIGHT = tf.cast(self.IMAGE_SIZE_0 * tf.math.sqrt(1 - b), tf.int32) * P
-
-        ya = tf.math.maximum(0, y - WIDTH//2)
-        yb = tf.math.minimum(self.IMAGE_SIZE_1, y + WIDTH // 2)
-        xa = tf.math.maximum(0, x - WIDTH//2)
-        xb = tf.math.minimum(self.IMAGE_SIZE_0, x + WIDTH // 2)
-        # MAKE CUTMIX RATIO
-        image_ratios = []
-        label_ratios = []
-        for j in range(self.AUG_BATCH):
-            one = tf.ones([yb[j, ] - ya[j, ], xa[j, ]], dtype=tf.float32)
-            two = tf.zeros([yb[j, ] - ya[j, ], xb[j, ] -
-                            xa[j, ]], dtype=tf.float32)
-            three = tf.ones(
-                [yb[j, ] - ya[j, ], self.IMAGE_SIZE_1 - xb[j, ]], dtype=tf.float32)
-            middle = tf.concat([one, two, three], axis=1)
-            res_image_ratio = tf.concat(
-                [
-                    tf.ones([ya[j, ], self.IMAGE_SIZE_1], dtype=tf.float32),
-                    middle,
-                    tf.ones([self.IMAGE_SIZE_0 - yb[j, ],
-                             self.IMAGE_SIZE_1], dtype=tf.float32)
-                ], axis=0
-            )
-            image_ratios.append(tf.expand_dims(res_image_ratio, -1))
-
-            # MAKE CUTMIX LABEL
-            a = 1 - tf.cast(HEIGHT[j, ] * WIDTH[j, ] /
-                            self.IMAGE_SIZE_0 / self.IMAGE_SIZE_1, tf.float32)
-            label_ratios.append(a)
-
-        return tf.stack(image_ratios), tf.stack(label_ratios)
-
-    def _batch_cutmix(
-        self,
-        image_batch,
-        label_batch,
-        labeled=True,
-        alpha=1.0,
-        PROBABILITY=1.0,
-    ):
-        imgs = []
-        labs = []
-        image_mix_ratios, label_mix_ratios = self._calc_cutmix(
-            alpha, PROBABILITY)
-        for j in range(self.AUG_BATCH):
-            k = tf.cast(tf.random.uniform([], 0, self.AUG_BATCH), tf.int32)
+        for j in range(self.aug_batch_size):
+            k = tf.cast(tf.random.uniform(
+                [], 0, self.aug_batch_size), tf.int32)
             img1 = image_batch[j, ]
             img2 = image_batch[k, ]
             lab1 = label_batch[j, ]
@@ -276,23 +212,113 @@ class Hoge:
             result_image = image_mix_ratios[j, ] * \
                 img1 + (1 - image_mix_ratios[j, ]) * img2
             imgs.append(result_image)
-            if labeled:
-                result_label = label_mix_ratios[j, ] * \
-                    lab1 + (1 - label_mix_ratios[j, ]) * lab2
-                labs.append(result_label)
+            result_label = label_mix_ratios[j, ] * \
+                lab1 + (1 - label_mix_ratios[j, ]) * lab2
+            labs.append(result_label)
 
         result_image_batch = tf.reshape(tf.stack(
-            imgs), (self.AUG_BATCH, self.IMAGE_SIZE_0, self.IMAGE_SIZE_1, self.CHANNELS))
-        if labeled:
-            result_label_batch = tf.reshape(
-                tf.stack(labs), (self.AUG_BATCH, self.CLASSES))
-        else:
-            result_label_batch = tf.reshape(label_batch, (self.AUG_BATCH, ))
+            imgs), (self.aug_batch_size, self.image_size_0, self.image_size_1, self.image_channels))
+        result_label_batch = tf.reshape(
+            tf.stack(labs), (self.aug_batch_size, -1))
 
         return result_image_batch, result_label_batch
 
-    # https://github.com/ecs-vlc/FMix/blob/master/fmix.py
+
+class RandomCutMix(MixAugmentationBase):
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, alpha):
+        super().__init__(self, p, aug_batch_size,
+                         image_size_0, image_size_1, image_channels, seed)
+        self.alpha = alpha
+
+    def _calc_cutmix(
+        self,
+    ):
+        # DO CUTMIX WITH PROBABILITY DEFINED ABOVE
+        P = tf.cast(tf.random.uniform(
+            [self.aug_batch_size], 0, 1) <= self.p, tf.int32)
+        # CHOOSE RANDOM LOCATION
+        x = tf.cast(tf.random.uniform(
+            [self.aug_batch_size], 0, self.image_size_1), tf.int32)
+        y = tf.cast(tf.random.uniform(
+            [self.aug_batch_size], 0, self.image_size_0), tf.int32)
+        # this is beta dist with alpha=1.0
+        b = self._beta_sampling([self.aug_batch_size], self.alpha)
+        WIDTH = tf.cast(self.image_size_1 * tf.math.sqrt(1 - b), tf.int32) * P
+        HEIGHT = tf.cast(self.image_size_0 * tf.math.sqrt(1 - b), tf.int32) * P
+
+        ya = tf.math.maximum(0, y - WIDTH//2)
+        yb = tf.math.minimum(self.image_size_1, y + WIDTH // 2)
+        xa = tf.math.maximum(0, x - WIDTH//2)
+        xb = tf.math.minimum(self.image_size_0, x + WIDTH // 2)
+        # MAKE CUTMIX RATIO
+        image_ratios = []
+        label_ratios = []
+        for j in range(self.aug_batch_size):
+            one = tf.ones([yb[j, ] - ya[j, ], xa[j, ]], dtype=tf.float32)
+            two = tf.zeros([yb[j, ] - ya[j, ], xb[j, ] -
+                            xa[j, ]], dtype=tf.float32)
+            three = tf.ones(
+                [yb[j, ] - ya[j, ], self.image_size_1 - xb[j, ]], dtype=tf.float32)
+            middle = tf.concat([one, two, three], axis=1)
+            res_image_ratio = tf.concat(
+                [
+                    tf.ones([ya[j, ], self.image_size_1], dtype=tf.float32),
+                    middle,
+                    tf.ones([self.image_size_0 - yb[j, ],
+                             self.image_size_1], dtype=tf.float32)
+                ], axis=0
+            )
+            image_ratios.append(tf.expand_dims(res_image_ratio, -1))
+
+            # MAKE CUTMIX LABEL
+            a = 1 - tf.cast(HEIGHT[j, ] * WIDTH[j, ] /
+                            self.image_size_0 / self.image_size_1, tf.float32)
+            label_ratios.append(a)
+
+        return tf.stack(image_ratios), tf.stack(label_ratios)
+
+    def _batch_cutmix(
+        self,
+        images,
+        labels,
+    ):
+        imgs = []
+        labs = []
+        image_mix_ratios, label_mix_ratios = self._calc_cutmix()
+        for j in range(self.aug_batch_size):
+            k = tf.cast(tf.random.uniform(
+                [], 0, self.aug_batch_size), tf.int32)
+            img1 = image_batch[j, ]
+            img2 = image_batch[k, ]
+            lab1 = label_batch[j, ]
+            lab2 = label_batch[k, ]
+
+            result_image = image_mix_ratios[j, ] * \
+                img1 + (1 - image_mix_ratios[j, ]) * img2
+            imgs.append(result_image)
+            result_label = label_mix_ratios[j, ] * \
+                lab1 + (1 - label_mix_ratios[j, ]) * lab2
+            labs.append(result_label)
+
+        result_image_batch = tf.reshape(tf.stack(
+            imgs), (self.aug_batch_size, self.image_size_0, self.image_size_1, self.image_channels))
+        result_label_batch = tf.reshape(
+            tf.stack(labs), (self.aug_batch_size, -1))
+
+        return result_image_batch, result_label_batch
+
+
+class RandomFMix(MixAugmentationBase):
+    def __init__(self, p, aug_batch_size, image_size_0, image_size_1, image_channels, seed, alpha, decay):
+        super().__init__(self, p, aug_batch_size,
+                         image_size_0, image_size_1, image_channels, seed)
+        self.alpha = alpha
+        self.decay = decay
+        self.IMAGE_MAX_W_H = max(self.image_size_0, self.image_size_1)
+        self.IMAGE_PIXEL_COUNT = self.image_size_0 * self.image_size_1
+
     def _fftfreq(self, n, d=1.0):
+        # https://github.com/ecs-vlc/FMix/blob/master/fmix.py
         val = 1.0 / (n * d)
         N = (n - 1) // 2 + 1
         p1 = tf.range(0, N, dtype=tf.float32)
@@ -340,7 +366,7 @@ class Hoge:
     def _make_low_freq_images(self, data_count, decay):
         # Make a mask image by inverse Fourier transform of a spectrum,
         # which is generated by self._get_spectrum().
-        freqs = self._fftfreqnd(self.IMAGE_SIZE_0, self.IMAGE_SIZE_1)
+        freqs = self._fftfreqnd(self.image_size_0, self.image_size_1)
         spectrum_bhw2 = self._get_spectrum(data_count, freqs, decay)
         spectrum_re_bhw = spectrum_bhw2[:, :, :, 0]
         spectrum_im_bhw = spectrum_bhw2[:, :, :, 1]
@@ -400,40 +426,35 @@ class Hoge:
         bin_masks_bp = tf.scatter_nd(scatter_indices_t2, scatter_updates_t, [
             data_count, self.IMAGE_PIXEL_COUNT])
         bin_masks_bhw1 = tf.reshape(
-            bin_masks_bp, [data_count, self.IMAGE_SIZE_0, self.IMAGE_SIZE_1, 1])
+            bin_masks_bp, [data_count, self.image_size_0, self.image_size_1, 1])
         return bin_masks_bhw1
 
     def _calc_fmix(
         self,
-        alpha=1.0,
-        decay=3.0,
-        PROBABILITY=1.0,
     ):
         # Generate mix ratios by beta distribution.
-        mix_ratios = self._beta_sampling([self.AUG_BATCH], alpha=alpha)
+        mix_ratios = self._beta_sampling(
+            [self.aug_batch_size], alpha=self.alpha)
 
         # Generate binary masks, then mix images.
-        low_freq_images = self._make_low_freq_images(self.AUG_BATCH, decay)
+        low_freq_images = self._make_low_freq_images(
+            self.aug_batch_size, self.decay)
         bin_masks = self._make_binary_masks(
-            self.AUG_BATCH, low_freq_images, mix_ratios)
+            self.aug_batch_size, low_freq_images, mix_ratios)
 
         return bin_masks, mix_ratios
 
-    def _batch_fmix(
+    def transform(
         self,
         image_batch,
         label_batch,
-        labeled=True,
-        alpha=1.0,
-        decay=3.0,
-        PROBABILITY=1.0,
     ):
         imgs = []
         labs = []
-        image_mix_ratios, label_mix_ratios = self._calc_fmix(
-            alpha, decay, PROBABILITY)
-        for j in range(self.AUG_BATCH):
-            k = tf.cast(tf.random.uniform([], 0, self.AUG_BATCH), tf.int32)
+        image_mix_ratios, label_mix_ratios = self._calc_fmix()
+        for j in range(self.aug_batch_size):
+            k = tf.cast(tf.random.uniform(
+                [], 0, self.aug_batch_size), tf.int32)
             img1 = image_batch[j, ]
             img2 = image_batch[k, ]
             lab1 = label_batch[j, ]
@@ -442,56 +463,13 @@ class Hoge:
             result_image = image_mix_ratios[j, ] * \
                 img1 + (1 - image_mix_ratios[j, ]) * img2
             imgs.append(result_image)
-            if labeled:
-                result_label = label_mix_ratios[j, ] * \
-                    lab1 + (1 - label_mix_ratios[j, ]) * lab2
-                labs.append(result_label)
+            result_label = label_mix_ratios[j, ] * \
+                lab1 + (1 - label_mix_ratios[j, ]) * lab2
+            labs.append(result_label)
 
         result_image_batch = tf.reshape(tf.stack(
-            imgs), (self.AUG_BATCH, self.IMAGE_SIZE_0, self.IMAGE_SIZE_1, self.CHANNELS))
-        if labeled:
-            result_label_batch = tf.reshape(
-                tf.stack(labs), (self.AUG_BATCH, self.CLASSES))
-        else:
-            result_label_batch = tf.reshape(label_batch, (self.AUG_BATCH, ))
+            imgs), (self.aug_batch_size, self.image_size_0, self.image_size_1, self.image_channels))
+        result_label_batch = tf.reshape(
+            tf.stack(labs), (self.aug_batch_size, self.CLASSES))
 
         return result_image_batch, result_label_batch
-
-    def __call__(
-        self,
-        image,
-        label,
-        labeled=True,
-    ):
-        """
-        image: batch of images whose size is equal to batch augmentation size
-        label: batch of labels whose size is equal to batch augmentation size
-        """
-        image2, label2 = self._batch_mixup(
-            image, label, labeled, self.MIXUP_ALPHA, self.MIXUP_PROB)
-        image3, label3 = self._batch_cutmix(
-            image, label, labeled, self.CUTMIX_ALPHA, self.CUTMIX_PROB)
-        image4, label4 = self._batch_fmix(
-            image, label, labeled, self.FMIX_ALPHA, self.FMIX_DECAY, self.FMIX_PROB)
-
-        imgs = []
-        labs = []
-        P = tf.cast(tf.random.uniform([self.AUG_BATCH], 0, 3), tf.int32)
-        P2 = tf.cast(P == 0, tf.float32)
-        P3 = tf.cast(P == 1, tf.float32)
-        for j in range(self.AUG_BATCH):
-            imgs.append(P2[j] * image2[j, ] + P3[j] *
-                        image3[j, ] + (1 - P2[j] - P3[j]) * image4[j, ])
-            if labeled:
-                labs.append(P2[j] * label2[j, ] + P3[j] *
-                            label3[j, ] + (1 - P2[j] - P3[j]) * label4[j, ])
-
-        result_image = tf.reshape(tf.stack(
-            imgs), (self.AUG_BATCH, self.IMAGE_SIZE_0, self.IMAGE_SIZE_1, self.CHANNELS))
-        if labeled:
-            result_label = tf.reshape(
-                tf.stack(labs), (self.AUG_BATCH, self.CLASSES))
-        else:
-            result_label = tf.reshape(label, (self.AUG_BATCH, ))
-
-        return result_image, result_label

@@ -1,3 +1,4 @@
+from augmentation import RandomFlipLeftRight
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -8,7 +9,7 @@ from augmentation import *
 AUG_BATCH = 64
 
 
-def display_items(ds, row=6, col=6):
+def display_items(ds, name, row=6, col=6):
     for i, (img, label) in enumerate(ds):
         plt.figure(figsize=(15, int(15*row/col)))
         for j in range(row*col):
@@ -19,9 +20,10 @@ def display_items(ds, row=6, col=6):
             plt.title(str(_label))
             plt.imshow(img[j, ].numpy())
         plt.savefig(
-            f"/workspaces/tf-image-classification/augmentation/test_result/result_{i}.png"
+            f"/workspaces/tf-image-classification/augmentation/test_result/result_{i}_{name}.png"
         )
-        break
+        if i == 2:
+            break
 
 
 def onehot(image, label):
@@ -37,6 +39,8 @@ def preprocess_image(image, label):
 
 
 def transform(images, labels):
+    r = RandomFlipLeftRight(0.5, AUG_BATCH, 224, 224, 3, 1221)
+    images, labels = r.transform(images, labels)
     return images, labels
 
 
@@ -46,9 +50,9 @@ def main():
     ds = ds.map(preprocess_image)
     ds = ds.map(onehot)
     ds = ds.batch(AUG_BATCH)
-    ds = ds.map(transform)
-
-    display_items(ds)
+    transform_ds = ds.map(transform)
+    display_items(ds, name="raw")
+    display_items(transform_ds, name="transform")
 
 
 if __name__ == "__main__":
