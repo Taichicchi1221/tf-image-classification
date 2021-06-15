@@ -1,14 +1,22 @@
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow_addons as tfa
 import tensorflow_datasets as tfds
-from augmentation import *
+from single_augmentation import *
+from mix_augmentation import *
+from utils import *
 
-AUG_BATCH = 64
+AUG_BATCH = 16
+H = 224
+W = 224
+CHANNELS = 3
+
+tf.random.set_seed(1221)
 
 
-def display_items(ds, name, row=5, col=5):
+def display_items(ds, name, row=4, col=4):
     for i, (img, label) in enumerate(ds):
         plt.figure(figsize=(15, int(15*row/col)))
         for j in range(row*col):
@@ -30,35 +38,30 @@ def onehot(image, label):
 
 
 def preprocess_image(image, label):
-    image = tf.image.resize(image, (224, 224))
+    image = tf.image.resize(image, (H, W))
     image = tf.cast(image, tf.float32) / 255.0
-    image = tf.reshape(image, (224, 224, 3))
+    image = tf.reshape(image, (H, W, CHANNELS))
 
     return image, label
 
 
 def transform(images, labels):
-    transform_objects = [
-        # RandomFlipLeftRight(0.5, AUG_BATCH, 224, 224, 3, 42),
-        # RandomFlipUpDown(0.5, AUG_BATCH, 224, 224, 3, 43),
-        # RandomRotation(0.5, AUG_BATCH, 224, 224, 3, 44,
-        #                ang_range=np.pi, fill_mode="nearest"),
-        # RandomBrightness(0.5, AUG_BATCH, 224, 224, 3, 45, max_delta=0.5),
-        # RandomContrast(0.5, AUG_BATCH, 224, 224, 3,
-        #                46, lower=0.5, upper=1.5),
-        # RandomHue(0.5, AUG_BATCH, 224, 224, 3,
-        #           47, max_delta=1.3),
-        # RandomJpegQuality(0.5, AUG_BATCH, 224, 224, 3,
-        #                   48, min_jpeg_quality=80, max_jpeg_quality=100),
-        # RandomSaturation(0.5, AUG_BATCH, 224, 224, 3,
-        #                  49, lower=0.5, upper=1.5),
-        # RandomMixUp(0.5, 64, 224, 224, 3, 10001, 1.0),
-        RandomCutMix(0.5, 64, 224, 224, 3, 10001, 1.0),
-        # RandomFMix(0.5, 64, 224, 224, 3, 10001, 1.0, 3.0),
-    ]
+    tr = Compose(
+        [
+            # RandomFlipLeftRight(p=0.5),
+            # RandomFlipUpDown(p=0.5),
+            # RandomBrightness(p=0.5),
+            # RandomContrast(p=0.5),
+            # RandomHue(p=0.5),
+            # RandomJpegQuality(p=0.5),
+            # RandomRotation(p=0.5, fill_mode="REFLECT"),
+            # RandomSaturation(p=0.5),
+            # RandomMixUp(p=0.5),
+            RandomCutMix(p=0.5),
+        ]
+    )
 
-    for o in transform_objects:
-        images, labels = o.transform(images, labels)
+    images, labels = tr.transform(images, labels)
 
     return images, labels
 
@@ -91,3 +94,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    print("#" * 30, f"process time: {time.process_time()}", "#" * 30)
