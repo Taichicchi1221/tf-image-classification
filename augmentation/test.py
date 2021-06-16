@@ -1,12 +1,11 @@
+from random import Random
 import time
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow_addons as tfa
 import tensorflow_datasets as tfds
-from single_augmentation import *
-from mix_augmentation import *
-from utils import *
+from augmentation import *
 
 AUG_BATCH = 16
 H = 224
@@ -48,16 +47,16 @@ def preprocess_image(image, label):
 def transform(images, labels):
     tr = Compose(
         [
-            # RandomFlipLeftRight(p=0.5),
-            # RandomFlipUpDown(p=0.5),
-            # RandomBrightness(p=0.5),
-            # RandomContrast(p=0.5),
-            # RandomHue(p=0.5),
-            # RandomJpegQuality(p=0.5),
-            # RandomRotation(p=0.5, fill_mode="REFLECT"),
-            # RandomSaturation(p=0.5),
-            # RandomMixUp(p=0.5),
-            # RandomCutMix(p=0.5),
+            RandomFlipLeftRight(p=0.5),
+            RandomFlipUpDown(p=0.5),
+            RandomBrightness(p=0.5),
+            RandomContrast(p=0.5),
+            RandomHue(p=0.5),
+            RandomJpegQuality(p=0.5),
+            RandomRotation(p=0.5, fill_mode="REFLECT"),
+            RandomSaturation(p=0.5),
+            RandomMixUp(p=0.5),
+            RandomCutMix(p=0.5),
             RandomFMix(p=0.5),
         ]
     )
