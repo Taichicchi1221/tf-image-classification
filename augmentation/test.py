@@ -57,7 +57,8 @@ def transform(images, labels):
             # RandomRotation(p=0.5, fill_mode="REFLECT"),
             # RandomSaturation(p=0.5),
             # RandomMixUp(p=0.5),
-            RandomCutMix(p=0.5),
+            # RandomCutMix(p=0.5),
+            RandomFMix(p=0.5),
         ]
     )
 
